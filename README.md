@@ -5,7 +5,7 @@ Data engineering project on r/stocks of Reddit
 
 This project aims to review and compare subreddit comment activity on a weekly basis with the performance of the S&P500.
 
-To accomplish this, a pipeline has to be created to ingest raw data into a data lake for storage, followed by transforming the data based on the reqquired insights for a dashboard.
+To accomplish this, a pipeline has to be created to ingest raw data into a data lake for storage, followed by transforming the data based on the required insights for a dashboard.
 
 ## Design
 
