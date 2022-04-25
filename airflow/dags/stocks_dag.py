@@ -1,12 +1,12 @@
 import os
 from datetime import datetime
-import pendulum
 from airflow import DAG
 from airflow.operators.bash import BashOperator
 from airflow.operators.python import PythonOperator
 
 from google.cloud import storage
-from airflow.providers.google.cloud.operators.bigquery import BigQueryCreateExternalTableOperator, BigQueryInsertJobOperator
+from airflow.providers.google.cloud.operators.bigquery import BigQueryInsertJobOperator
+from airflow.providers.google.cloud.operators.dataproc import ClusterGenerator, DataprocCreateClusterOperator, DataprocSubmitJobOperator
 
 from custom_scripts.ingest_reddit import extract_reddit_data
 from custom_scripts.preprocessing import json_to_csv, csv_to_parquet
@@ -15,6 +15,18 @@ BUCKET = os.environ.get("GCP_GCS_BUCKET")
 AIRFLOW_HOME = os.environ.get("AIRFLOW_HOME", "/opt/airflow/")
 BIGQUERY_DATASET = os.environ.get('BIGQUERY_DATASET', 'stocks_data')
 PROJECT_ID = os.environ.get('GCP_PROJECT_ID')
+PYSPARK_URI = f'gs://{BUCKET}/scripts/wordcount_by_date.py'
+
+CLUSTER_GENERATOR_CONFIG = ClusterGenerator(
+            project_id=PROJECT_ID,
+            service_account='de-r-stocks-service@de-r-stocks.iam.gserviceaccount.com',
+            zone="asia-southeast1-a",
+            master_machine_type="n1-standard-4",
+            num_masters=1,
+            max_idle="900s",
+            init_actions_uris=[f'gs://{BUCKET}/scripts/pip-install.sh'],
+            metadata={'PIP_PACKAGES': 'spark-nlp'},
+        ).make()
 
 def load_to_gcs(bucket, object_name, local_file):
     """
@@ -87,25 +99,25 @@ def reddit_pipeline_template(
             bash_command = f'rm {json_filepath} {csv_filepath}'
         )
 
-        create_BQ_external_table_task = BigQueryCreateExternalTableOperator(
-            task_id = f'create_external_table_task',
-            table_resource={
-                "tableReference": {
-                    "projectId": PROJECT_ID,
-                    "datasetId": BIGQUERY_DATASET,
-                    "tableId": f"{subreddit}_{mode}_external_table",
-                },
-                "externalDataConfiguration": {
-                    "autodetect": "True",
-                    "sourceFormat": "PARQUET",
-                    "sourceUris": f"gs://{BUCKET}/{gcs_path}",
-                },
-            },
+        QUERY = f'''CREATE OR REPLACE EXTERNAL TABLE {BIGQUERY_DATASET}.{subreddit}_{mode}_external_table
+                    OPTIONS (
+                        format="PARQUET",
+                        uris=["gs://{BUCKET}/{gcs_path}"]
+                    );'''
+
+        create_BQ_external_table_task = BigQueryInsertJobOperator(
+            task_id = 'create_external_table',
+            configuration={
+                'query': {
+                    'query': QUERY,
+                    'useLegacySql': False,
+                }
+            }
         )
        
         # Create a partitioned table from external table
-        bq_create_partitioned_table_task = BigQueryInsertJobOperator(
-            task_id = f"bq_create_partitioned_table_task",
+        BQ_create_partitioned_table_task = BigQueryInsertJobOperator(
+            task_id = "bq_create_partitioned_table",
             configuration={
                 "query": {
                     "query": "{% include 'load_datawarehouse.sql' %}",
@@ -114,14 +126,85 @@ def reddit_pipeline_template(
             }
         )
 
+        create_cluster_operator_task = DataprocCreateClusterOperator(
+            task_id='create_dataproc_cluster',
+            cluster_name="de-spark-cluster",
+            project_id=PROJECT_ID,
+            region="asia-southeast1",
+            cluster_config=CLUSTER_GENERATOR_CONFIG,
+            use_if_exists=True,
+            retries=0
+        )
+
+        QUERY_CREATE_WORDCOUNT_TABLE = '''
+            CREATE TABLE IF NOT EXISTS {{ BIGQUERY_DATASET }}.{{ subreddit }}_{{ mode }}_wordcount (
+                word STRING,
+                wordcount INTEGER,
+                {{ mode }}_date DATE
+            )
+            PARTITION BY {{ mode }}_date'''
+        
+        create_wordcount_table_task = BigQueryInsertJobOperator(
+            task_id = 'create_wordcount_table',
+            configuration={
+                'query': {
+                    'query': QUERY_CREATE_WORDCOUNT_TABLE,
+                    'useLegacySql': False,
+                }
+            }
+        )
+
+        QUERY_DELETE_WORDCOUNT_ROWS = '''
+        DELETE {{ BIGQUERY_DATASET }}.{{ subreddit }}_{{ mode }}_wordcount
+        WHERE {{ mode }}_date BETWEEN '{{ ds }}' AND '{{ macros.ds_add(data_interval_end.strftime('%Y-%m-%d'), -1) }}';
+        '''
+
+        # delete any existing duplicate rows before writing
+        delete_wordcountdup_task = BigQueryInsertJobOperator(
+            task_id = 'delete_wordcountdup',
+            configuration={
+                'query': {
+                    'query': QUERY_DELETE_WORDCOUNT_ROWS,
+                    'useLegacySql': False,
+                }
+            }
+        )
+        
+        pyspark_job = {
+            "reference": {"project_id": PROJECT_ID},
+            "placement": {"cluster_name": 'de-spark-cluster'},
+            "pyspark_job": {
+                "main_python_file_uri": PYSPARK_URI,
+                "jar_file_uris": ["gs://spark-lib/bigquery/spark-bigquery-latest_2.12.jar"],
+                "properties": {
+                    "spark.jars.packages":"com.johnsnowlabs.nlp:spark-nlp_2.12:3.4.3"
+                },
+                "args": [
+                    f"--input=gs://{BUCKET}/{gcs_path}",
+                    f"--dataset={BIGQUERY_DATASET}",
+                    f"--subreddit={subreddit}",
+                    f"--mode={mode}"
+                    ]
+            }
+        }
+
+        wordcount_sparksubmit_task = DataprocSubmitJobOperator(
+            task_id='wordcount_sparksubmit',
+            job=pyspark_job,
+            region='asia-southeast1',
+            project_id=PROJECT_ID,
+            trigger_rule='all_done'
+        )
+
         download_data_task >> json_to_csv_task >> csv_to_parquet_task >> load_to_gcs_task >> [delete_local_json_csv, create_BQ_external_table_task]
-        create_BQ_external_table_task >> bq_create_partitioned_table_task
+        create_BQ_external_table_task >> BQ_create_partitioned_table_task >> create_wordcount_table_task
+        create_wordcount_table_task >> delete_wordcountdup_task >> create_cluster_operator_task >> wordcount_sparksubmit_task
 
 default_args = {
     "owner": "Zachary",
-    "start_date": datetime(2022, 2, 1),
-    "end_date": datetime(2022, 3, 31),
-    "depends_on_past": True,
+    "start_date": datetime(2022, 3, 1),
+    "end_date": datetime(2022, 4, 30),
+    "depends_on_past": False,
     "retries": 1,
 }
 
