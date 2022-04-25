@@ -1,0 +1,33 @@
+BACKFILL
+docker compose run airflow-worker airflow dags backfill --start-date 2022-03-01 --end-date 2022-04-30 stocks_submission_weekly
+
+RUN THIS COMMAND TO COPY INITIALIZATION SCRIPT TO GCS
+gsutil cp gs://goog-dataproc-initialization-actions-asia-southeast1/python/pip-install.sh gs://datalake_de-r-stocks
+
+CREATE DATAPROC CLUSTER
+gcloud dataproc clusters create de-spark-cluster \
+    --region asia-southeast1 \
+    --zone asia-southeast1-a \
+    --single-node \
+    --master-machine-type n1-standard-4 \
+    --master-boot-disk-size 500 \
+    --image-version 2.0-debian10 \
+    --max-idle 900s \
+    --project de-r-stocks \
+    --metadata 'PIP_PACKAGES=spark-nlp' \
+    --initialization-actions gs://datalake_de-r-stocks/pip-install.sh
+
+SPARK-SUBMIT
+gcloud dataproc jobs submit pyspark \
+    --cluster=de-spark-cluster \
+    --region=asia-southeast1 \
+    --project=de-r-stocks \
+    --jars=gs://spark-lib/bigquery/spark-bigquery-latest_2.12.jar \
+    --properties spark.jars.packages=com.johnsnowlabs.nlp:spark-nlp_2.12:3.4.3 \
+    wordcount.py \
+    -- \
+        --input=gs://datalake_de-r-stocks/stocks/submission/stocks_submission_2022-02-06.parquet \
+        --dataset=stocks_data
+        --subreddit=stocks
+        --mode=submission
+
