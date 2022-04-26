@@ -9,7 +9,7 @@
 # files
 *.parquet
 *.ipynb
-*.txt
+commands.txt
 
 #airflow
 airflow/logs/
