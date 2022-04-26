@@ -197,8 +197,8 @@ def reddit_pipeline_template(
         )
 
         download_data_task >> json_to_csv_task >> csv_to_parquet_task >> load_to_gcs_task >> [delete_local_json_csv, create_BQ_external_table_task]
-        create_BQ_external_table_task >> BQ_create_partitioned_table_task >> create_wordcount_table_task
-        create_wordcount_table_task >> delete_wordcountdup_task >> create_cluster_operator_task >> wordcount_sparksubmit_task
+        create_BQ_external_table_task >> BQ_create_partitioned_table_task
+        load_to_gcs_task >> create_wordcount_table_task >> delete_wordcountdup_task >> create_cluster_operator_task >> wordcount_sparksubmit_task
 
 default_args = {
     "owner": "Zachary",
