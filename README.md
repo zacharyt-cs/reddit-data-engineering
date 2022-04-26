@@ -40,9 +40,9 @@
 
 [![Dashboard][dashboard_screenshot]](https://datastudio.google.com/s/mjIjKwWNUQU)
 
-Interested to explore Reddit data for trends or analytics?
+Interested to explore Reddit data for trends, analytics, or just for the fun of it?
 
-This project builds a data pipeline (from data ingestion to visualisation) that stores and preprocess data over any time period you want.
+This project builds a data pipeline (from data ingestion to visualisation) that stores and preprocess data over any time period that you want.
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
@@ -87,13 +87,13 @@ To get a local copy up and running in the same environment, you'll need to:
 * Clone this repository locally
 
 ### Create a Google Cloud Project
-1. Go to [Google Cloud](https://console.cloud.google.com/) and create a new project.
+1. Go to [Google Cloud](https://console.cloud.google.com/) and create a new project. I set the id to 'de-r-stocks'.
 2. Go to IAM and [create a Service Account](https://cloud.google.com/docs/authentication/getting-started#creating_a_service_account) with these roles:
   * BigQuery Admin
   * Storage Admin
   * Storage Object Admin
   * Viewer
-3. Download the Service Account credentials, rename it to `google_credentials.json` and store it in `$HOME/.google/credentials/`.
+3. Download the Service Account credentials, rename it to `de-r-stocks.json` and store it in `$HOME/.google/credentials/`.
 4. On the Google console, enable the following APIs:
   * IAM API
   * IAM Service Account Credentials API
@@ -115,10 +115,21 @@ I recommend executing the following on VSCode.
 5. Plan the infrastructure: `terraform plan`
 6. Apply the changes: `terraform apply`
 
-If everything goes right, you now have a bucket on Google Cloud Storage called 'datalake_<project-id>' and a dataset on BigQuery called 'stocks_data'.
+If everything goes right, you now have a bucket on Google Cloud Storage called 'datalake_de-r-stocks' and a dataset on BigQuery called 'stocks_data'.
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
+### Set up Airflow
+1. Using VSCode, open `docker-compose.yaml` and look for the `#self-defined` block.
+2. Modify the variables to match your setup.
+3. Using the terminal, change the directory to the airflow folder, e.g. `cd airflow`.
+4. Build the custom Airflow docker image: `docker-compose build`
+5. Initialise the Airflow configs: `docker-compose up airflow-init`
+6. Run Airflow: `docker-compose up`
+
+If done successfully, you will be able to access the Airflow interface by going to `localhost:8080` on your browser.
+
+Username and password are both `airflow`.
 
 <!-- USAGE EXAMPLES -->
 ## Usage
