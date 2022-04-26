@@ -1,5 +1,5 @@
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.operators.bash import BashOperator
 from airflow.operators.python import PythonOperator
@@ -205,6 +205,7 @@ default_args = {
     "end_date": datetime(2022, 4, 30),
     "depends_on_past": False,
     "retries": 1,
+    "retry_delay": timedelta(seconds=60)
 }
 
 # all dag definitions (dag = DAG()) should be in the global scope
@@ -213,7 +214,6 @@ stocks_submission_weekly_dag = DAG(
         schedule_interval = '@weekly',
         catchup = True,
         max_active_runs = 3,
-        retry_delay = datetime.timedelta(seconds=60),
         default_args = default_args,
         user_defined_macros={
             "BIGQUERY_DATASET": BIGQUERY_DATASET,
