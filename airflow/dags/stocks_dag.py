@@ -19,11 +19,12 @@ PYSPARK_URI = f'gs://{BUCKET}/scripts/wordcount_by_date.py'
 
 CLUSTER_GENERATOR_CONFIG = ClusterGenerator(
             project_id=PROJECT_ID,
-            service_account='de-r-stocks-service@de-r-stocks.iam.gserviceaccount.com',
             zone="asia-southeast1-a",
             master_machine_type="n1-standard-4",
+            master_disk_size=500,
             num_masters=1,
-            max_idle="900s",
+            num_workers=0,                          # single node mode
+            idle_delete_ttl=900,                    # idle time before deleting cluster
             init_actions_uris=[f'gs://{BUCKET}/scripts/pip-install.sh'],
             metadata={'PIP_PACKAGES': 'spark-nlp'},
         ).make()
@@ -126,16 +127,6 @@ def reddit_pipeline_template(
             }
         )
 
-        create_cluster_operator_task = DataprocCreateClusterOperator(
-            task_id='create_dataproc_cluster',
-            cluster_name="de-spark-cluster",
-            project_id=PROJECT_ID,
-            region="asia-southeast1",
-            cluster_config=CLUSTER_GENERATOR_CONFIG,
-            use_if_exists=True,
-            retries=0
-        )
-
         QUERY_CREATE_WORDCOUNT_TABLE = '''
             CREATE TABLE IF NOT EXISTS {{ BIGQUERY_DATASET }}.{{ subreddit }}_{{ mode }}_wordcount (
                 word STRING,
@@ -152,6 +143,14 @@ def reddit_pipeline_template(
                     'useLegacySql': False,
                 }
             }
+        )
+        # task will marked as 'success' if cluster exists
+        create_cluster_operator_task = DataprocCreateClusterOperator(
+            task_id='create_dataproc_cluster',
+            cluster_name="de-spark-cluster",
+            project_id=PROJECT_ID,
+            region="asia-southeast1",
+            cluster_config=CLUSTER_GENERATOR_CONFIG
         )
 
         QUERY_DELETE_WORDCOUNT_ROWS = '''
@@ -197,8 +196,8 @@ def reddit_pipeline_template(
         )
 
         download_data_task >> json_to_csv_task >> csv_to_parquet_task >> load_to_gcs_task >> [delete_local_json_csv, create_BQ_external_table_task]
-        create_BQ_external_table_task >> BQ_create_partitioned_table_task >> create_wordcount_table_task
-        create_wordcount_table_task >> delete_wordcountdup_task >> create_cluster_operator_task >> wordcount_sparksubmit_task
+        create_BQ_external_table_task >> BQ_create_partitioned_table_task
+        load_to_gcs_task >> create_wordcount_table_task >> create_cluster_operator_task >> delete_wordcountdup_task >> wordcount_sparksubmit_task
 
 default_args = {
     "owner": "Zachary",
@@ -213,7 +212,8 @@ stocks_submission_weekly_dag = DAG(
         dag_id = 'stocks_submission_weekly',
         schedule_interval = '@weekly',
         catchup = True,
-        max_active_runs = 2,
+        max_active_runs = 3,
+        retry_delay = datetime.timedelta(seconds=60),
         default_args = default_args,
         user_defined_macros={
             "BIGQUERY_DATASET": BIGQUERY_DATASET,
@@ -233,21 +233,23 @@ reddit_pipeline_template(
     gcs_path = 'stocks/submission/stocks_submission_{{ data_interval_start.strftime("%Y-%m-%d") }}.parquet'
 )
 
-stocks_comment_weekly_dag = DAG(
-        dag_id = 'stocks_comment_weekly',
-        schedule_interval = '@weekly',
-        catchup = True,
-        max_active_runs = 2,
-        default_args = default_args
-    )
+
+#---------------------------- THE SECTION BELOW IS UNUSED ---------------------------
+# stocks_comment_weekly_dag = DAG(
+#         dag_id = 'stocks_comment_weekly',
+#         schedule_interval = '@weekly',
+#         catchup = True,
+#         max_active_runs = 2,
+#         default_args = default_args
+#     )
 
 # comment
-reddit_pipeline_template(
-    dag = stocks_comment_weekly_dag,
-    subreddit = 'stocks',
-    mode = 'comment',
-    json_filepath = AIRFLOW_HOME + '/data/json/stocks_comment_{{ data_interval_start.strftime("%Y-%m-%d") }}.json',
-    csv_filepath = AIRFLOW_HOME + '/data/csv/stocks_comment_{{ data_interval_start.strftime("%Y-%m-%d") }}.csv',
-    parquet_filepath = AIRFLOW_HOME + '/data/parquet/stocks_comment_{{ data_interval_start.strftime("%Y-%m-%d") }}.parquet',
-    gcs_path = 'stocks/comment/stocks_comment_{{ data_interval_start.strftime("%Y-%m-%d") }}.parquet'
-)
+# reddit_pipeline_template(
+#     dag = stocks_comment_weekly_dag,
+#     subreddit = 'stocks',
+#     mode = 'comment',
+#     json_filepath = AIRFLOW_HOME + '/data/json/stocks_comment_{{ data_interval_start.strftime("%Y-%m-%d") }}.json',
+#     csv_filepath = AIRFLOW_HOME + '/data/csv/stocks_comment_{{ data_interval_start.strftime("%Y-%m-%d") }}.csv',
+#     parquet_filepath = AIRFLOW_HOME + '/data/parquet/stocks_comment_{{ data_interval_start.strftime("%Y-%m-%d") }}.parquet',
+#     gcs_path = 'stocks/comment/stocks_comment_{{ data_interval_start.strftime("%Y-%m-%d") }}.parquet'
+# )

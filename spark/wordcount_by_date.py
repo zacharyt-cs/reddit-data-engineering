@@ -21,7 +21,9 @@ dataset = args.dataset
 subreddit = args.subreddit
 mode = args.mode
 
-BUCKET = 'dataproc-temp-asia-southeast1-199926105384-mjv5yqqm'
+# change this to your bucket
+# bucket is used as temporary storage while writing data from Spark to BigQuery
+BUCKET = 'datalake_de-r-stocks'
 
 # Start Spark session
 spark = SparkSession.builder \
@@ -43,26 +45,26 @@ df_filter = df.filter(~F.col('author').contains('AutoModerator')) \
             .select('title', 'date')
             
 documentAssembler = DocumentAssembler() \
-     .setInputCol('title') \
-     .setOutputCol('title_document')
+    .setInputCol('title') \
+    .setOutputCol('title_document')
 
 tokenizer = Tokenizer() \
-     .setInputCols(['title_document']) \
-     .setOutputCol('title_token')
+    .setInputCols(['title_document']) \
+    .setOutputCol('title_token')
 
 normalizer = Normalizer() \
-     .setInputCols(['title_token']) \
-     .setOutputCol('title_normalized') \
-     .setLowercase(True)
+    .setInputCols(['title_token']) \
+    .setOutputCol('title_normalized') \
+    .setLowercase(True)
 
 lemmatizer = LemmatizerModel.pretrained() \
             .setInputCols(['title_normalized']) \
             .setOutputCol('title_lemma')
 
 stopwords_cleaner = StopWordsCleaner() \
-     .setInputCols(['title_lemma']) \
-     .setOutputCol('title_cleaned') \
-     .setCaseSensitive(False)
+    .setInputCols(['title_lemma']) \
+    .setOutputCol('title_cleaned') \
+    .setCaseSensitive(False)
 
 ngrams_cum = NGramGenerator() \
             .setInputCols(["title_cleaned"]) \
@@ -72,9 +74,9 @@ ngrams_cum = NGramGenerator() \
             .setDelimiter("_") # Default is space
 
 finisher = Finisher() \
-     .setInputCols(['title_ngrams']) \
-     .setOutputCols(['title_finished']) \
-     .setCleanAnnotations(False)
+    .setInputCols(['title_ngrams']) \
+    .setOutputCols(['title_finished']) \
+    .setCleanAnnotations(False)
 
 nlpPipeline = Pipeline(stages=[
               documentAssembler, 
@@ -125,8 +127,8 @@ df_wordcountbydate = df_wordcountbydate.withColumn('count', F.col('count').cast(
 
 # upload dataframe to BigQuery
 df_wordcountbydate.write.format('bigquery') \
-    .option('temporaryGcsBucket', BUCKET) \
     .option('table', f'{dataset}.{subreddit}_{mode}_wordcount') \
+    .option('temporaryGcsBucket', BUCKET) \
     .option('partitionField', f'{mode}_date') \
     .option('partitionType', 'DAY') \
     .mode('append') \
