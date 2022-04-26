@@ -69,7 +69,6 @@ It orchestrates the following on a weekly schedule:
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
-<!-- GETTING STARTED -->
 ## Getting Started
 
 I created this project in WSL 2 (Windows Subsystem for Linux) on Windows 10.
@@ -89,15 +88,16 @@ To get a local copy up and running in the same environment, you'll need to:
 ### Create a Google Cloud Project
 1. Go to [Google Cloud](https://console.cloud.google.com/) and create a new project. I set the id to 'de-r-stocks'.
 2. Go to IAM and [create a Service Account](https://cloud.google.com/docs/authentication/getting-started#creating_a_service_account) with these roles:
-  * BigQuery Admin
-  * Storage Admin
-  * Storage Object Admin
-  * Viewer
+    * BigQuery Admin
+    * Storage Admin
+    * Storage Object Admin
+    * Viewer
 3. Download the Service Account credentials, rename it to `de-r-stocks.json` and store it in `$HOME/.google/credentials/`.
 4. On the Google console, enable the following APIs:
-  * IAM API
-  * IAM Service Account Credentials API
-  * Cloud Dataproc API
+    * IAM API
+    * IAM Service Account Credentials API
+    * Cloud Dataproc API
+    * Compute Engine API
 
 ### Use Terraform to set up the infrastructure on Google Cloud
 I recommend executing the following on VSCode.
@@ -105,11 +105,10 @@ I recommend executing the following on VSCode.
 1. Using VSCode + WSL, open the project folder `de_r-stocks`. 
 2. Open `variables.tf` and modify:
     
-    `variable "project"` to your own project id (I think may not be necessary)
-    
-    `variable "region"` to your project region
-    
-    `variable "credentials"` to your credentials path 
+    * `variable "project"` to your own project id (I think may not be necessary)
+    * `variable "region"` to your project region
+    * `variable "credentials"` to your credentials path
+
 3. Open the VSCode terminal and change directory to the terraform folder, e.g. `cd terraform`.
 4. Initialise Terraform: `terraform init`
 5. Plan the infrastructure: `terraform plan`
@@ -117,53 +116,56 @@ I recommend executing the following on VSCode.
 
 If everything goes right, you now have a bucket on Google Cloud Storage called 'datalake_de-r-stocks' and a dataset on BigQuery called 'stocks_data'.
 
+### Set up Airflow
+1. Using VSCode, open `docker-compose.yaml` and look for the `#self-defined` block. Modify the variables to match your setup.
+2. Open `stocks_dag.py`. You may need to change the following:
+
+    * `zone` in `CLUSTER_GENERATOR_CONFIG`
+    * Parameters in `default_args`
+
 <p align="right">(<a href="#top">back to top</a>)</p>
 
-### Set up Airflow
-1. Using VSCode, open `docker-compose.yaml` and look for the `#self-defined` block.
-2. Modify the variables to match your setup.
-3. Using the terminal, change the directory to the airflow folder, e.g. `cd airflow`.
-4. Build the custom Airflow docker image: `docker-compose build`
-5. Initialise the Airflow configs: `docker-compose up airflow-init`
-6. Run Airflow: `docker-compose up`
+## Usage
 
-If done successfully, you will be able to access the Airflow interface by going to `localhost:8080` on your browser.
+### Start Airflow
+1. Using the terminal, change the directory to the airflow folder, e.g. `cd airflow`.
+2. Build the custom Airflow docker image: `docker-compose build`
+3. Initialise the Airflow configs: `docker-compose up airflow-init`
+4. Run Airflow: `docker-compose up`
+
+If the setup was done correctly, you will be able to access the Airflow interface by going to `localhost:8080` on your browser.
 
 Username and password are both `airflow`.
 
-<!-- USAGE EXAMPLES -->
-## Usage
-
-Use this space to show useful examples of how a project can be used. Additional screenshots, code examples and demos work well in this space. You may also link to more resources.
-
-_For more examples, please refer to the [Documentation](https://example.com)_
+### Prepare for Spark jobs on Dataproc
+1. Go to `wordcount_by_date.py` and modify the string value of `BUCKET` to your bucket's id.
+2. Store initialisation and PySpark scripts on your bucket. It is required to create the cluster to run our Spark job.
+    
+    Run in the terminal (using the correct bucket name and region):
+    * `gsutil cp gs://goog-dataproc-initialization-actions-asia-southeast1/python/pip-install.sh gs://datalake_de-r-stocks/scripts`
+    * `gsutil cp spark/wordcount_by_date.py gs://datalake_de-r-stocks/scripts`
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
+## That's All Folks!
+Enable the DAG on Airflow and let it do its magic!
+
+![airflow][airflow_screenshot]
 
 ## Help
 
-<!-- ROADMAP -->
-## Roadmap
+### Authorisation error while trying to create a Dataproc cluster from Airflow
+1. Go to Google Cloud Platform's IAM
+2. Under the Compute Engine default service account, add the roles 'Editor' and 'Dataproc Worker'.
 
-- [x] Add Changelog
-- [x] Add back to top links
-- [ ] Add Additional Templates w/ Examples
-- [ ] Add "components" document to easily copy & paste sections of the readme
-- [ ] Multi-language Support
-    - [ ] Chinese
-    - [ ] Spanish
+## Roadmap for Future Development
 
-See the [open issues](https://github.com/othneildrew/Best-README-Template/issues) for a full list of proposed features (and known issues).
+- [ ] Refactor code for convenient change to `subreddit` and `mode`.
+- [ ] Use Terraform to set up tables on BigQuery instead of creating tables as part of the DAG.
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
-
-
-<!-- CONTRIBUTING -->
 ## Contributing
-
-Contributions are what make the open source community such an amazing place to learn, inspire, and create. Any contributions you make are **greatly appreciated**.
 
 If you have a suggestion that would make this better, please fork the repo and create a pull request. You can also simply open an issue with the tag "enhancement".
 Don't forget to give the project a star! Thanks again!
@@ -176,47 +178,25 @@ Don't forget to give the project a star! Thanks again!
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
-
-
-<!-- LICENSE -->
 ## License
 
 Distributed under the MIT License. See `LICENSE.txt` for more information.
 
-<p align="right">(<a href="#top">back to top</a>)</p>
-
-
-
-<!-- CONTACT -->
 ## Contact
 
-Your Name - [@your_twitter](https://twitter.com/your_username) - email@example.com
+[LinkedIn](https://www.linkedin.com/in/zacharytancs/)
 
-Project Link: [https://github.com/your_username/repo_name](https://github.com/your_username/repo_name)
-
-<p align="right">(<a href="#top">back to top</a>)</p>
-
-
-
-<!-- ACKNOWLEDGMENTS -->
 ## Acknowledgments
 
 Use this space to list resources you find helpful and would like to give credit to. I've included a few of my favorites to kick things off!
 
-* [Choose an Open Source License](https://choosealicense.com)
-* [GitHub Emoji Cheat Sheet](https://www.webpagefx.com/tools/emoji-cheat-sheet)
-* [Malven's Flexbox Cheatsheet](https://flexbox.malven.co/)
-* [Malven's Grid Cheatsheet](https://grid.malven.co/)
-* [Img Shields](https://shields.io)
-* [GitHub Pages](https://pages.github.com)
-* [Font Awesome](https://fontawesome.com)
-* [React Icons](https://react-icons.github.io/react-icons/search)
+* [Data Engineering Zoomcamp by DataTalksClub](https://github.com/DataTalksClub/data-engineering-zoomcamp)
+* [This README template](https://github.com/othneildrew/Best-README-Template)
 
 <p align="right">(<a href="#top">back to top</a>)</p>
-
-
 
 <!-- MARKDOWN LINKS & IMAGES -->
 <!-- https://www.markdownguide.org/basic-syntax/#reference-style-links -->
 [dashboard_screenshot]: images/dashboard.png
 [architecture_diagram]: images/architecture.png
+[airflow_screenshot]: images/airflow.png
