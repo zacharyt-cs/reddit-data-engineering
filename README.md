@@ -23,11 +23,20 @@
       <a href="#getting-started">Getting Started</a>
       <ul>
         <li><a href="#prerequisites">Prerequisites</a></li>
-        <li><a href="#installation">Installation</a></li>
+        <li><a href="#create-a-google-cloud-project">Create a Google Cloud Project</a></li>
+        <li><a href="#set-up-the-infrastructure-on-google-cloud-with-terraform">Set up the infrastructure on Google Cloud with Terraform</a></li>
+        <li><a href="#set-up-airflow">Set up Airflow</a></li>
       </ul>
     </li>
-    <li><a href="#usage">Usage</a></li>
-    <li><a href="#roadmap">Roadmap</a></li>
+    <li>
+      <a href="#usage">Usage</a>
+      <ul>
+        <li><a href="#start-airflow">Start Airflow</a></li>
+        <li><a href="#prepare-for-spark-jobs-on-dataproc">Prepare for Spark jobs on Dataproc</a></li>
+      </ul>
+    </li>
+    <li><a href="#help">Help</a></li>
+    <li><a href="#roadmap-for-future-development">Roadmap for Future Development</a></li>
     <li><a href="#contributing">Contributing</a></li>
     <li><a href="#license">License</a></li>
     <li><a href="#contact">Contact</a></li>
@@ -99,7 +108,7 @@ To get a local copy up and running in the same environment, you'll need to:
     * Cloud Dataproc API
     * Compute Engine API
 
-### Use Terraform to set up the infrastructure on Google Cloud
+### Set up the infrastructure on Google Cloud with Terraform
 I recommend executing the following on VSCode.
 
 1. Using VSCode + WSL, open the project folder `de_r-stocks`. 
@@ -147,16 +156,17 @@ Username and password are both `airflow`.
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
-## That's All Folks!
-Enable the DAG on Airflow and let it do its magic!
+Now, you are ready to enable the DAG on Airflow and let it do its magic!
 
 ![airflow][airflow_screenshot]
 
+When you are done, just stop the airflow services by going to the `airflow` directory with terminal and execute `docker-compose down`.
+
 ## Help
 
-### Authorisation error while trying to create a Dataproc cluster from Airflow
-1. Go to Google Cloud Platform's IAM
-2. Under the Compute Engine default service account, add the roles 'Editor' and 'Dataproc Worker'.
+Authorisation error while trying to create a Dataproc cluster from Airflow
+  1. Go to Google Cloud Platform's IAM
+  2. Under the Compute Engine default service account, add the roles 'Editor' and 'Dataproc Worker'.
 
 ## Roadmap for Future Development
 
@@ -184,14 +194,14 @@ Distributed under the MIT License. See `LICENSE.txt` for more information.
 
 ## Contact
 
-[LinkedIn](https://www.linkedin.com/in/zacharytancs/)
+[Connect with me on LinkedIn!](https://www.linkedin.com/in/zacharytancs/)
 
 ## Acknowledgments
 
 Use this space to list resources you find helpful and would like to give credit to. I've included a few of my favorites to kick things off!
 
 * [Data Engineering Zoomcamp by DataTalksClub](https://github.com/DataTalksClub/data-engineering-zoomcamp)
-* [This README template](https://github.com/othneildrew/Best-README-Template)
+* [Best-README-Template](https://github.com/othneildrew/Best-README-Template)
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
