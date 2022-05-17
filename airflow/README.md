@@ -92,10 +92,14 @@ The last four arguments are custom flags passed to the driver, e.g:
 
 These arguments will be parsed and used in the `wordcount_by_date.py` script.
 
-Instead of using the bash code, I wrapped the above in the DataprocSubmitJobOperator.
+Instead of using the bash code, I wrapped the above in the DataprocSubmitJobOperator. Besides the difference in API and the parameterisation, it is functionally identical.
+
 The code looks like this (you can find it in `stocks_dag.py`):
 ```
 from airflow.providers.google.cloud.operators.dataproc import DataprocSubmitJobOperator
+
+PYSPARK_URI = f'gs://{BUCKET}/scripts/wordcount_by_date.py'
+
 
 pyspark_job = {
 	"reference": {"project_id": PROJECT_ID},
