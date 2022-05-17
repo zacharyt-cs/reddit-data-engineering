@@ -32,6 +32,21 @@ volumes:
 ### Create a Dataproc cluster in Airflow
 Official doc: https://airflow.apache.org/docs/apache-airflow-providers-google/stable/operators/cloud/dataproc.html#examples-of-job-configurations-to-submit
 
+The `gcloud` bash command is as follows:
+```
+gcloud dataproc clusters create de-spark-cluster \
+    --region asia-southeast1 \
+    --zone asia-southeast1-a \
+    --single-node \
+    --master-machine-type n1-standard-4 \
+    --master-boot-disk-size 500 \
+    --image-version 2.0-debian10 \
+    --max-idle 900s \
+    --project de-r-stocks \
+    --metadata 'PIP_PACKAGES=spark-nlp' \
+    --initialization-actions gs://datalake_de-r-stocks/pip-install.sh
+```
+We can use ClusterGenerator to generate the cluster configuration instead of manually setting the API.
 ```
 from airflow.providers.google.cloud.operators.dataproc import ClusterGenerator, DataprocCreateClusterOperator
 
@@ -55,8 +70,8 @@ create_cluster_operator_task = DataprocCreateClusterOperator(
 	cluster_config=CLUSTER_GENERATOR_CONFIG
 )
 ```
-We can use ClusterGenerator to generate the cluster configuration instead of manually setting the API.
 `init_actions_uris`: When the cluster is created, it will be initalised to install dependencies under `metadata` with pip
+
 `metadata`: `spark-nlp` is required in our PySpark job
 
 See https://github.com/GoogleCloudDataproc/initialization-actions/tree/master/python
@@ -86,7 +101,7 @@ gcloud dataproc jobs submit pyspark \
 
 `wordcount_by_date.py`: The main .py file to run as the driver. It contains the PySpark code which does the preprocessing. In the above case, the file exists locally, but it can be on the cluster or in a storage bucket.
 
-The last four arguments are custom flags passed to the driver, e.g:
+The last four arguments are custom flags passed to the driver, e.g.:
 
 `gcloud dataproc jobs submit pyspark --cluster=my_cluster my_script.py -- --custom-flag`
 
