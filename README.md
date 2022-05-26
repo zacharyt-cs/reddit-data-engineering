@@ -173,6 +173,9 @@ Authorisation error while trying to create a Dataproc cluster from Airflow
 
 - [ ] Refactor code for convenient change to `subreddit` and `mode`.
 - [ ] Use Terraform to set up tables on BigQuery instead of creating tables as part of the DAG.
+- [ ] Unit tests
+- [ ] Data quality (Great Expectations)
+- [ ] CI/CD
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
