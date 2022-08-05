@@ -41,7 +41,7 @@
     <li><a href="#contributing">Contributing</a></li>
     <li><a href="#license">License</a></li>
     <li><a href="#contact">Contact</a></li>
-    <li><a href="#acknowledgments">Acknowledgments</a></li>
+    <li><a href="#acknowledgements">Acknowledgements</a></li>
   </ol>
 </details>
 
@@ -174,7 +174,7 @@ Authorisation error while trying to create a Dataproc cluster from Airflow
 - [ ] Refactor code for convenient change to `subreddit` and `mode`.
 - [ ] Use Terraform to set up tables on BigQuery instead of creating tables as part of the DAG.
 - [ ] Unit tests
-- [ ] Data quality (Great Expectations)
+- [ ] Data quality checks
 - [ ] CI/CD
 
 <p align="right">(<a href="#top">back to top</a>)</p>
@@ -200,7 +200,7 @@ Distributed under the MIT License. See `LICENSE.txt` for more information.
 
 [Connect with me on LinkedIn!](https://www.linkedin.com/in/zacharytancs/)
 
-## Acknowledgments
+## Acknowledgements
 
 Use this space to list resources you find helpful and would like to give credit to. I've included a few of my favorites to kick things off!
 
